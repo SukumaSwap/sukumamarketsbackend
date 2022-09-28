@@ -1,0 +1,21 @@
+[package]
+name = "sukumaswap-contract"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dalmas Ogembo <dalmasogembo@gmail.com>"]
+
+[dependencies]
+near-sdk = "4.0.0-pre.7"
+near-contract-standards = "4.0.0-pre.7"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
