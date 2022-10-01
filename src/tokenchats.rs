@@ -7,6 +7,7 @@ use near_sdk::{
   AccountId, Balance, Timestamp,
 };
 
+use crate::tokenoffers::CompleteTokenOffer;
 use crate::*;
 
 // #[near_bindgen]
@@ -33,6 +34,13 @@ pub struct TokenChat {
   pub payment_msg: String,
   pub created_on: Timestamp,
   pub updated_on: Option<Timestamp>,
+}
+
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CompleteTokenChat {
+  chat: Option<TokenChat>,
+  offer: Option<CompleteTokenOffer>,
 }
 
 // #[near_bindgen]
@@ -105,10 +113,9 @@ impl TokenChat {
   pub fn mark_as_canceled(&mut self) -> String {
     if self.paid == false && self.received == false {
       self.canceled = true;
-    self.active = false;
-    return "chat canceled".to_string();
-    }
-    else{
+      self.active = false;
+      return "chat canceled".to_string();
+    } else {
       return "Chat cannot be cancelled since its either marked as paid or received".to_string();
     }
   }
@@ -230,6 +237,12 @@ impl Contract {
 
   pub fn get_token_chat(&mut self, chat_id: String) -> Option<TokenChat> {
     self.tokenchats.get(&chat_id)
+  }
+
+  pub fn pub_get_token_chat(&mut self, chat_id: String) -> CompleteTokenChat {
+    let chat = self.tokenchats.get(&chat_id);
+    let offer = self.pub_get_token_offer(chat.as_ref().unwrap().offer_id.clone());
+    CompleteTokenChat { chat, offer }
   }
 
   pub fn mark_token_as_paid(&mut self, chat_id: String) -> String {
@@ -373,76 +386,12 @@ impl Contract {
   pub fn receiver_token_rate_chat(&mut self, chat_id: String, rating: bool) {
     let mut chat = self.tokenchats.remove(&chat_id.clone()).unwrap();
     let account_id = env::predecessor_account_id();
-    if account_id.clone() == chat.clone().payer {
-      if chat.clone().payer_has_rated {
-        if rating.clone() {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .remove_dislike();
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_like();
-        } else {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .remove_like();
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_dislike();
-        }
-        self.tokenchats.insert(&chat_id.clone(), &chat.clone());
-      } else {
-        if rating.clone() {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_like();
-        } else {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_dislike();
-        }
-        chat.payer_has_rated = true;
-        self.tokenchats.insert(&chat_id.clone(), &chat);
-      }
-    }
-  }
-
-  pub fn payer_token_rate_chat(&mut self, chat_id: String, rating: bool) {
-    let mut chat = self.tokenchats.remove(&chat_id.clone()).unwrap();
-    let account_id = env::predecessor_account_id();
     if account_id.clone() == chat.clone().receiver {
       if chat.clone().receiver_has_rated {
         if rating.clone() {
           self
             .get_account(chat.clone().payer.clone())
             .unwrap()
-            .remove_dislike();
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .add_like();
-        } else {
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .remove_like();
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .add_dislike();
-        }
-        self.tokenchats.insert(&chat_id.clone(), &chat.clone());
-      } else {
-        if rating.clone() {
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
             .add_like();
         } else {
           self
@@ -450,9 +399,31 @@ impl Contract {
             .unwrap()
             .add_dislike();
         }
-        chat.receiver_has_rated = true;
-        self.tokenchats.insert(&chat_id.clone(), &chat.clone());
       }
     }
+    chat.receiver_has_rated = true;
+    self.tokenchats.insert(&chat_id.clone(), &chat);
+  }
+
+  pub fn payer_token_rate_chat(&mut self, chat_id: String, rating: bool) {
+    let mut chat = self.tokenchats.remove(&chat_id.clone()).unwrap();
+    let account_id = env::predecessor_account_id();
+    if account_id.clone() == chat.clone().payer {
+      if chat.clone().payer_has_rated {
+        if rating.clone() {
+          self
+            .get_account(chat.clone().receiver.clone())
+            .unwrap()
+            .add_like();
+        } else {
+          self
+            .get_account(chat.clone().receiver.clone())
+            .unwrap()
+            .add_dislike();
+        }
+      }
+    }
+    chat.payer_has_rated = true;
+    self.tokenchats.insert(&chat_id.clone(), &chat.clone());
   }
 }

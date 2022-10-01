@@ -7,6 +7,7 @@ use near_sdk::{
   AccountId, Balance, Promise, Timestamp,
 };
 
+use crate::offer::CompleteOffer;
 use crate::*;
 
 // #[near_bindgen]
@@ -32,6 +33,13 @@ pub struct Chat {
   pub payment_msg: String,
   pub created_on: Timestamp,
   pub updated_on: Option<Timestamp>,
+}
+
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CompleteChat {
+  chat: Option<Chat>,
+  offer: Option<CompleteOffer>,
 }
 
 // #[near_bindgen]
@@ -65,7 +73,7 @@ impl Chat {
       receiver_has_rated: false,
       payment_msg,
       created_on: env::block_timestamp(),
-      updated_on: Some(env::block_timestamp())
+      updated_on: Some(env::block_timestamp()),
     }
   }
 
@@ -213,6 +221,12 @@ impl Contract {
     self.chats.get(&chat_id)
   }
 
+  pub fn pub_get_chat(&self, chat_id: String) -> CompleteChat {
+    let chat = self.chats.get(&chat_id);
+    let offer = self.pub_get_offer(chat.as_ref().unwrap().offer_id.clone());
+    CompleteChat { chat, offer }
+  }
+
   pub fn mark_as_paid(&mut self, chat_id: String) -> String {
     let mut chat = self.chats.remove(&chat_id.clone()).unwrap();
 
@@ -254,7 +268,6 @@ impl Contract {
   }
 
   pub fn get_account_chats(&self, account_id: AccountId) -> Vec<Chat> {
-
     let mut chats = Vec::new();
     self.chats.to_vec().into_iter().for_each(|(_id, chat)| {
       if chat.owner == account_id || chat.offerer == account_id {
@@ -354,86 +367,44 @@ impl Contract {
   pub fn receiver_rate_chat(&mut self, chat_id: String, rating: bool) {
     let mut chat = self.chats.remove(&chat_id.clone()).unwrap();
     let account_id = env::predecessor_account_id();
-    if account_id.clone() == chat.clone().payer {
-      if chat.clone().payer_has_rated {
+    if account_id.clone() == chat.clone().receiver {
+      if !chat.clone().receiver_has_rated {
         if rating.clone() {
           self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .remove_dislike();
-          self
-            .get_account(chat.clone().receiver.clone())
+            .get_account(chat.clone().payer.clone())
             .unwrap()
             .add_like();
         } else {
           self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .remove_like();
-          self
-            .get_account(chat.clone().receiver.clone())
+            .get_account(chat.clone().payer.clone())
             .unwrap()
             .add_dislike();
         }
-        self.chats.insert(&chat_id.clone(), &chat.clone());
-      } else {
-        if rating.clone() {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_like();
-        } else {
-          self
-            .get_account(chat.clone().receiver.clone())
-            .unwrap()
-            .add_dislike();
-        }
-        chat.payer_has_rated = true;
-        self.chats.insert(&chat_id.clone(), &chat);
       }
     }
+    chat.receiver_has_rated = true;
+    self.chats.insert(&chat_id.clone(), &chat);
   }
 
   pub fn payer_rate_chat(&mut self, chat_id: String, rating: bool) {
     let mut chat = self.chats.remove(&chat_id.clone()).unwrap();
     let account_id = env::predecessor_account_id();
-    if account_id.clone() == chat.clone().receiver {
-      if chat.clone().receiver_has_rated {
+    if account_id.clone() == chat.clone().payer {
+      if !chat.clone().payer_has_rated {
         if rating.clone() {
           self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .remove_dislike();
-          self
-            .get_account(chat.clone().payer.clone())
+            .get_account(chat.clone().receiver.clone())
             .unwrap()
             .add_like();
         } else {
           self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .remove_like();
-          self
-            .get_account(chat.clone().payer.clone())
+            .get_account(chat.clone().receiver.clone())
             .unwrap()
             .add_dislike();
         }
-        self.chats.insert(&chat_id.clone(), &chat.clone());
-      } else {
-        if rating.clone() {
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .add_like();
-        } else {
-          self
-            .get_account(chat.clone().payer.clone())
-            .unwrap()
-            .add_dislike();
-        }
-        chat.receiver_has_rated = true;
-        self.chats.insert(&chat_id.clone(), &chat.clone());
       }
     }
+    chat.payer_has_rated = true;
+    self.chats.insert(&chat_id.clone(), &chat);
   }
 }
