@@ -45,6 +45,16 @@ pub struct PubAccountInfo {
   pub created_on: Timestamp,
 }
 
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PrivateAccountInfo {
+  pub info: PubAccountInfo,
+  pub balance: Balance,
+  pub locked: Balance,
+  pub tokens: HashMap<AccountId, Balance>,
+  pub locked_tokens: HashMap<AccountId, Balance>,
+}
+
 // #[near_bindgen]
 #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -52,10 +62,10 @@ pub struct Account {
   // Account identifier, matches the account ID
   pub id: AccountId,
 
-  // Balance of the account
+  // Balance of the account Near Token
   pub balance: Balance,
 
-  // Amount locked for an ongoing trade chat
+  // Amount locked for an ongoing trade chat - Near
   pub locked: Balance,
 
   // Likes of the account
@@ -69,6 +79,8 @@ pub struct Account {
   // Locked tokens
   pub locked_tokens: HashMap<AccountId, Balance>,
 
+  // Blocked accounts
+  // pub blocked_accounts: UnorderedSet<AccountId>,
   pub blocked_by: i32,
   pub created_on: Timestamp,
 }
@@ -248,7 +260,6 @@ impl Account {
       self.balance / ONE_NEAR
     )
   }
-
 }
 
 #[near_bindgen]
@@ -343,7 +354,6 @@ impl Contract {
       "{}",
       ERR9_NOT_ALLOWED
     );
-    
   }
 
   pub fn unlock_account(&mut self, account_id: AccountId, amount: u128) {
@@ -372,7 +382,7 @@ impl Contract {
     return len.try_into().unwrap();
   }
 
-  pub fn acc_pub_info(&self, account_id: AccountId) -> Option<PubAccountInfo>  {
+  pub fn acc_pub_info(&self, account_id: AccountId) -> Option<PubAccountInfo> {
     let acc = self.pub_get_account(account_id.clone());
     if acc.as_ref().is_some() {
       let acc_info = PubAccountInfo {
@@ -387,6 +397,32 @@ impl Contract {
         created_on: acc.unwrap().created_on,
       };
       return Some(acc_info);
+    }
+    return None;
+  }
+
+  pub fn acc_private_info(&self, account_id: AccountId) -> Option<PrivateAccountInfo> {
+    let acc = self.pub_get_account(account_id.clone());
+    if acc.as_ref().is_some() {
+      let acc_info = PubAccountInfo {
+        id: acc.unwrap().id.clone(),
+        likes: acc.unwrap().likes,
+        trades: self.get_trades_length_by_account(account_id.clone()),
+        transfers: self.get_transfers_len_by_account(account_id.clone()),
+        offers: self.get_offers_len_by_account(account_id.clone())
+          + self.get_t_offers_len_by_account(account_id.clone()),
+        dislikes: acc.unwrap().dislikes,
+        blocked_by: acc.unwrap().blocked_by,
+        created_on: acc.unwrap().created_on,
+      };
+      let priv_acc_info = PrivateAccountInfo {
+        info: acc_info,
+        balance: acc.unwrap().balance,
+        locked: acc.unwrap().locked,
+        tokens: acc.unwrap().tokens.clone(),
+        locked_tokens: acc.unwrap().locked_tokens.clone(),
+      };
+      return Some(priv_acc_info);
     }
     return None;
   }

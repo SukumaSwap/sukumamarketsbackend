@@ -22,7 +22,7 @@ pub struct Chat {
   pub started_at: Timestamp,
   pub ended_at: Option<Timestamp>,
   pub active: bool,
-  pub payer: AccountId,
+  pub payer: AccountId, //Pay fiat
   pub receiver: AccountId,
   pub paid: bool,
   pub received: bool,
