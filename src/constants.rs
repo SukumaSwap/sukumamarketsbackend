@@ -14,13 +14,13 @@ const ACC_ID_AS_CLT_KEY_STORAGE: StorageUsage = ACC_ID_AS_KEY_STORAGE + 1;
 pub const INIT_ACCOUNT_STORAGE: StorageUsage =
   ACC_ID_AS_CLT_KEY_STORAGE + 1 + U128_STORAGE + U32_STORAGE + U32_STORAGE + U64_STORAGE;
 
-pub const GAS_FOR_BASIC_OP: Gas = Gas(100_000_000_000_000);
+pub const GAS_FOR_BASIC_OP: Gas = Gas(10_000_000_000_000);
 
 pub const GAS_FOR_RESOLVE_TRANSFER: Gas = Gas(20_000_000_000_000);
 
-pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(75_000_000_000_000 + 25_000_000_000_000);
+pub const GAS_FOR_FT_TRANSFER_CALL: Gas = Gas(25_000_000_000_000 + 20_000_000_000_000);
 
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas(100_000_000_000_000);
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas(20_000_000_000_000);
 
 // All the accounts that we may need during testing
 pub fn supercode() -> AccountId {
