@@ -20,6 +20,7 @@ pub struct TokenChat {
   pub owner: AccountId,
   pub offerer: AccountId,
   pub amount: Balance,
+  pub trade_cost: Balance,
   pub started_at: Timestamp,
   pub ended_at: Option<Timestamp>,
   pub active: bool,
@@ -52,6 +53,7 @@ impl TokenChat {
     owner: AccountId,
     offerer: AccountId,
     amount: Balance,
+    trade_cost: U128,
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
@@ -63,6 +65,7 @@ impl TokenChat {
       owner,
       offerer,
       amount,
+      trade_cost: u128::from(trade_cost),
       started_at: env::block_timestamp(),
       ended_at: None,
       active: true,
@@ -130,6 +133,7 @@ impl Contract {
     token_id: AccountId,
     owner: AccountId,
     amount: U128,
+    trade_cost: U128,
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
@@ -165,6 +169,7 @@ impl Contract {
                 owner.clone(),
                 offer.as_ref().unwrap().offerer.clone(),
                 u128::from(amount.clone()),
+                trade_cost,
                 payer.clone(),
                 receiver.clone(),
                 payment_msg,
@@ -174,6 +179,10 @@ impl Contract {
               .get_account(owner.clone())
               .unwrap()
               .lock_tokens(token_id.clone(), u128::from(amount.clone()));
+              self
+              .get_account(owner.clone())
+              .unwrap()
+              .lock(u128::from(trade_cost.clone()));
             return "created".to_string();
           }
         }
@@ -189,6 +198,7 @@ impl Contract {
     token_id: AccountId,
     owner: AccountId,
     amount: U128,
+    trade_cost: U128,
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
@@ -219,6 +229,7 @@ impl Contract {
               owner,
               offer.as_ref().unwrap().offerer.clone(),
               u128::from(amount.clone()),
+              trade_cost,
               payer,
               receiver,
               payment_msg,
@@ -228,6 +239,10 @@ impl Contract {
             .get_account(offer.as_ref().unwrap().offerer.clone())
             .unwrap()
             .lock_tokens(token_id.clone(), u128::from(amount.clone()));
+            self
+            .get_account(offer.as_ref().unwrap().offerer.clone())
+            .unwrap()
+            .lock(u128::from(trade_cost.clone()));
           return "created".to_string();
         }
       }
@@ -326,24 +341,25 @@ impl Contract {
     let offer = self.get_token_offer(chat.offer_id.clone()).unwrap();
 
     if offer.offer_type.clone() == "buy".to_string() {
-      let trade = Trade::new(
-        chat.clone().id.clone(),
-        offer.offer_type.clone(),
-        chat.clone().owner.clone(),
-        chat.clone().offerer.clone(),
-        chat.clone().amount.clone(),
-        chat.clone().id.clone(),
-        chat.clone().token_id.to_string(),
-        Some(chat.started_at.clone()),
-        Some(env::block_timestamp()),
-      );
+      // let trade = Trade::new(
+      //   chat.clone().id.clone(),
+      //   offer.offer_type.clone(),
+      //   chat.clone().owner.clone(),
+      //   chat.clone().offerer.clone(),
+      //   chat.clone().amount.clone(),
+      //   chat.clone().id.clone(),
+      //   chat.clone().token_id.to_string(),
+      //   Some(chat.started_at.clone()),
+      //   Some(env::block_timestamp()),
+      // );
       if chat.clone().released {
         self.tokenchats.insert(&chat_id.clone(), &chat.clone());
         panic!("Amount already released");
       } else {
         chat.mark_as_released();
         self.tokenchats.insert(&chat_id.clone(), &chat.clone());
-        self.trades.push(&trade);
+        // self.trades.push(&trade);
+        self.create_revenue(chat.clone().token_id.clone().to_string(), chat.clone().receiver.clone(),U128(chat.clone().trade_cost.clone()));
         self.send_tokens(
           chat.clone().owner.clone(),
           chat.clone().offerer.clone(),
@@ -353,17 +369,17 @@ impl Contract {
         );
       }
     } else {
-      let trade = Trade::new(
-        chat.clone().id.clone(),
-        offer.offer_type.clone(),
-        chat.clone().offerer.clone(),
-        chat.clone().owner.clone(),
-        chat.clone().amount.clone(),
-        chat.clone().id.clone(),
-        chat.clone().token_id.to_string(),
-        Some(chat.started_at.clone()),
-        Some(env::block_timestamp()),
-      );
+      // let trade = Trade::new(
+      //   chat.clone().id.clone(),
+      //   offer.offer_type.clone(),
+      //   chat.clone().offerer.clone(),
+      //   chat.clone().owner.clone(),
+      //   chat.clone().amount.clone(),
+      //   chat.clone().id.clone(),
+      //   chat.clone().token_id.to_string(),
+      //   Some(chat.started_at.clone()),
+      //   Some(env::block_timestamp()),
+      // );
       if chat.clone().released {
         self.tokenchats.insert(&chat_id.clone(), &chat.clone());
         panic!("Amount already released");
@@ -371,7 +387,8 @@ impl Contract {
         chat.mark_as_released();
         chat.update_ended_at();
         self.tokenchats.insert(&chat_id.clone(), &chat.clone());
-        self.trades.push(&trade);
+        // self.trades.push(&trade);
+        self.create_revenue(chat.clone().token_id.clone().to_string(), chat.clone().payer.clone(),U128(chat.clone().trade_cost.clone()));
         self.send_tokens(
           chat.clone().offerer.clone(),
           chat.clone().owner.clone(),

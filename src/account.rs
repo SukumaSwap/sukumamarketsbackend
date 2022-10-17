@@ -149,8 +149,10 @@ impl Account {
       "Not enough balance to lock, can't proceed to lock the amount of {} for a trade.",
       amount
     );
-    self.balance -= amount;
-    self.locked += amount;
+    if amount.clone() > 0 {
+      self.balance -= amount;
+      self.locked += amount;
+    }
   }
 
   pub fn unlock(&mut self, amount: u128) {
