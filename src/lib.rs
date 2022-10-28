@@ -1,18 +1,18 @@
+use crate::account::Account;
+use crate::chat::Chat;
+use crate::errors::*;
+use crate::offer::Offer;
+use crate::tokenswap::TokenSwap;
+use crate::trade::Trade;
+use crate::transfer::Transfer;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, BorshStorageKey, Timestamp};
 use revenue::Revenue;
+use std::collections::HashMap;
 use tokenchats::TokenChat;
 use tokenoffers::TokenOffer;
-use std::collections::HashMap;
-use crate::offer::Offer;
-use crate::tokenswap::TokenSwap;
-use crate::trade::Trade;
-use crate::transfer::Transfer;
-use crate::account::Account;
-use crate::errors::*;
-use crate::chat::Chat;
 pub mod account;
 pub mod chat;
 pub mod constants;
@@ -20,13 +20,13 @@ pub mod errors;
 pub mod fungibletoken;
 pub mod offer;
 pub mod owner;
+pub mod revenue;
 pub mod tests;
 pub mod tokenchats;
 pub mod tokenoffers;
 pub mod tokenswap;
 pub mod trade;
 pub mod transfer;
-pub mod revenue;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
@@ -50,6 +50,7 @@ pub struct PaymentMethod {
   pub icon: String,
 }
 
+
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct Contract {
@@ -59,7 +60,7 @@ pub struct Contract {
   pub accounts: HashMap<AccountId, Account>,
   pub trades: Vector<Trade>,
   pub transfers: Vector<Transfer>,
-  pub tokenswaps: LookupMap<String, TokenSwap>, 
+  pub tokenswaps: LookupMap<String, TokenSwap>,
   pub offers: UnorderedMap<String, Offer>,
   pub tokenoffers: UnorderedMap<String, TokenOffer>,
   pub chats: UnorderedMap<String, Chat>,
@@ -69,9 +70,8 @@ pub struct Contract {
   pub tokens: UnorderedMap<AccountId, TokenMetadata>,
   pub whitelistedtokens: UnorderedMap<AccountId, TokenMetadata>,
   pub payment_methods: UnorderedMap<String, PaymentMethod>,
-  pub currencies: UnorderedSet<String>,
   pub revenue: u128,
-  pub revenues: UnorderedSet<Revenue>
+  pub revenues: UnorderedSet<Revenue>,
 }
 
 impl Default for Contract {
@@ -93,7 +93,6 @@ impl Default for Contract {
       tokens: UnorderedMap::new(b"h".to_vec()),
       whitelistedtokens: UnorderedMap::new(b"k".to_vec()),
       payment_methods: UnorderedMap::new(b"i".to_vec()),
-      currencies: UnorderedSet::new(b"j".to_vec()),
       revenue: 0,
       revenues: UnorderedSet::new(b"l".to_vec()),
     }
@@ -121,7 +120,6 @@ impl Contract {
       tokens: UnorderedMap::new(b"h".to_vec()),
       whitelistedtokens: UnorderedMap::new(b"k".to_vec()),
       payment_methods: UnorderedMap::new(b"i".to_vec()),
-      currencies: UnorderedSet::new(b"j".to_vec()),
       revenue: 0,
       revenues: UnorderedSet::new(b"l".to_vec()),
     }
@@ -133,14 +131,6 @@ impl Contract {
 
   pub fn remove_payment_method(&mut self, method_name: String) {
     self.payment_methods.remove(&method_name);
-  }
-
-  pub fn add_currency(&mut self, currency: String){
-    self.currencies.insert(&currency);
-  }
-
-  pub fn get_currencies(&self) -> Vec<String>{
-    self.currencies.iter().collect()
   }
 
   pub fn add_token(&mut self, token: AccountId, metadata: TokenMetadata) {
@@ -174,13 +164,15 @@ impl Contract {
 
   pub fn get_payments(&self) -> Vec<PaymentMethod> {
     let mut methods = Vec::new();
-    self.payment_methods.to_vec().into_iter().for_each(|(_id, method)| {
-        methods.push(method)
-    });
+    self
+      .payment_methods
+      .to_vec()
+      .into_iter()
+      .for_each(|(_id, method)| methods.push(method));
     methods
   }
 
-  pub fn get_payment(&self, name: String)->Option<PaymentMethod>{
+  pub fn get_payment(&self, name: String) -> Option<PaymentMethod> {
     self.payment_methods.get(&name)
   }
 }
