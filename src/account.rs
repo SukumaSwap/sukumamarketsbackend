@@ -156,7 +156,7 @@ impl Account {
   }
 
   pub fn unlock(&mut self, amount: u128) {
-    assert!(self.locked >= amount);
+    assert!(self.locked >= amount.clone(), "amount to unlock is greater than locked {} - {}", self.locked, amount.clone());
     self.locked -= amount.clone();
     self.balance += amount.clone();
   }

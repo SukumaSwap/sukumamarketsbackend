@@ -1,4 +1,6 @@
-use near_sdk::{AccountId, Gas, StorageUsage};
+use near_sdk::{
+  AccountId, Gas, StorageUsage,
+};
 
 const U128_STORAGE: StorageUsage = 16;
 const U64_STORAGE: StorageUsage = 8;

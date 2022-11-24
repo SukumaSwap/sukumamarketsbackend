@@ -66,11 +66,12 @@ pub struct Contract {
   pub chats: UnorderedMap<String, Chat>,
   pub tokenchats: UnorderedMap<String, TokenChat>,
   pub transfer_cost: u32,
-  pub send_cost: u32,
+  pub send_cost: f32,
   pub tokens: UnorderedMap<AccountId, TokenMetadata>,
   pub whitelistedtokens: UnorderedMap<AccountId, TokenMetadata>,
   pub payment_methods: UnorderedMap<String, PaymentMethod>,
   pub revenue: u128,
+  pub revenue_usd: f64,
   pub revenues: UnorderedSet<Revenue>,
 }
 
@@ -83,7 +84,7 @@ impl Default for Contract {
       transfers: Vector::new(StorageKey::Transfers),
       tokenswaps: LookupMap::new(b"b".to_vec()),
       transfer_cost: 0,
-      send_cost: 0,
+      send_cost: 0.05,
       accounts: HashMap::new(),
       offers: UnorderedMap::new(b"c".to_vec()),
       tokenoffers: UnorderedMap::new(b"d".to_vec()),
@@ -94,6 +95,7 @@ impl Default for Contract {
       whitelistedtokens: UnorderedMap::new(b"k".to_vec()),
       payment_methods: UnorderedMap::new(b"i".to_vec()),
       revenue: 0,
+      revenue_usd: 0.0,
       revenues: UnorderedSet::new(b"l".to_vec()),
     }
   }
@@ -110,7 +112,7 @@ impl Contract {
       transfers: Vector::new(StorageKey::Transfers),
       tokenswaps: LookupMap::new(b"b".to_vec()),
       transfer_cost: 0,
-      send_cost: 0,
+      send_cost: 0.05,
       accounts: HashMap::new(),
       offers: UnorderedMap::new(b"c".to_vec()),
       tokenoffers: UnorderedMap::new(b"d".to_vec()),
@@ -121,6 +123,7 @@ impl Contract {
       whitelistedtokens: UnorderedMap::new(b"k".to_vec()),
       payment_methods: UnorderedMap::new(b"i".to_vec()),
       revenue: 0,
+      revenue_usd: 0.0,
       revenues: UnorderedSet::new(b"l".to_vec()),
     }
   }
@@ -160,6 +163,14 @@ impl Contract {
 
   pub fn get_token(&self, token: AccountId) -> Option<TokenMetadata> {
     self.tokens.get(&token)
+  }
+
+  pub fn get_send_cost(&self) -> f32 {
+    return self.send_cost;
+  }
+
+  pub fn update_send_cost(&mut self, cost: f32){
+    self.send_cost = cost;
   }
 
   pub fn get_payments(&self) -> Vec<PaymentMethod> {

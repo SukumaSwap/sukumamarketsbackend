@@ -11,7 +11,7 @@ use crate::offer::CompleteOffer;
 use crate::*;
 
 // #[near_bindgen]
-#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Chat {
   pub id: String,
@@ -20,6 +20,7 @@ pub struct Chat {
   pub offerer: AccountId,
   pub amount: Balance,
   pub trade_cost: Balance,
+  pub trade_cost_usd: f64,
   pub started_at: Timestamp,
   pub ended_at: Option<Timestamp>,
   pub active: bool,
@@ -52,6 +53,7 @@ impl Chat {
     offerer: AccountId,
     amount: Balance,
     trade_cost: Balance,
+    trade_cost_usd: f64,
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
@@ -63,6 +65,7 @@ impl Chat {
       offerer,
       amount,
       trade_cost,
+      trade_cost_usd,
       started_at: env::block_timestamp(),
       ended_at: None,
       active: true,
@@ -132,22 +135,26 @@ impl Contract {
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
+    trade_cost: U128,
+    trade_cost_usd: f64
   ) -> String {
+
     let offer = self.get_offer(offer_id.clone());
-    let trade_cost = self.send_cost as u128 * u128::from(amount.clone());
+
     if owner.clone() == offer.as_ref().unwrap().offerer.clone() {
-      // panic!("You can't chat with yourself");
       return "You can't chat with yourself".to_string();
     }
     if offer.as_ref().is_none() {
       return "Offer not found".to_string();
     } else {
       if offer.as_ref().unwrap().offer_type.clone() == "buy".to_string() {
-        let chat_initiator = self.get_account(owner.clone());
+        let chat_initiator = self.get_account(payer.clone());
         if chat_initiator.as_ref().is_none() {
           return "You must be a registered user to chat with someone".to_string();
         } else {
-          if chat_initiator.as_ref().unwrap().clone().balance < (u128::from(amount.clone()) + trade_cost.clone()) {
+          if chat_initiator.as_ref().unwrap().clone().balance
+            < (u128::from(amount.clone()) + u128::from(trade_cost.clone()))
+          {
             return "You don't have enough balance to chat with someone".to_string();
           } else {
             self.chats.insert(
@@ -158,16 +165,17 @@ impl Contract {
                 owner.clone(),
                 offer.as_ref().unwrap().offerer.clone(),
                 u128::from(amount.clone()),
-                trade_cost.clone(),
+                u128::from(trade_cost.clone()),
+                trade_cost_usd,
                 payer.clone(),
                 receiver.clone(),
                 payment_msg,
               ),
             );
             self
-              .get_account(owner.clone())
+              .get_account(payer.clone())
               .unwrap()
-              .lock(u128::from(amount.clone()) + trade_cost.clone());
+              .lock(u128::from(amount.clone()) + u128::from(trade_cost.clone()));
             return "created".to_string();
           }
         }
@@ -185,9 +193,12 @@ impl Contract {
     payer: AccountId,
     receiver: AccountId,
     payment_msg: String,
+    trade_cost: U128,
+    trade_cost_usd: f64
   ) -> String {
+
     let offer = self.get_offer(offer_id.clone());
-    let trade_cost = self.send_cost as u128 * u128::from(amount.clone());
+
     if owner.clone() == offer.as_ref().unwrap().offerer.clone() {
       return "You can't chat with yourself".to_string();
     }
@@ -195,8 +206,9 @@ impl Contract {
       return "Offer not found".to_string();
     } else {
       if offer.as_ref().unwrap().offer_type.clone() == "sell".to_string() {
-        let offer_owner = self.get_account(offer.as_ref().unwrap().offerer.clone());
-        if offer_owner.as_ref().unwrap().balance < (u128::from(amount.clone()) + trade_cost.clone()) {
+        let offer_owner = self.get_account(receiver.clone());
+        if offer_owner.as_ref().unwrap().balance < (u128::from(amount.clone()) + u128::from(trade_cost.clone()))
+        {
           return "Offerer does not have sufficient balance to hold the trade. ".to_string();
         } else {
           self.chats.insert(
@@ -207,16 +219,17 @@ impl Contract {
               owner,
               offer.as_ref().unwrap().offerer.clone(),
               u128::from(amount.clone()),
-              trade_cost.clone(),
-              payer,
-              receiver,
+              u128::from(trade_cost.clone()),
+                trade_cost_usd,
+              payer.clone(),
+              receiver.clone(),
               payment_msg,
             ),
           );
           self
-            .get_account(offer.as_ref().unwrap().offerer.clone())
+            .get_account(receiver.clone())
             .unwrap()
-            .lock(u128::from(amount.clone()) + trade_cost.clone());
+            .lock(u128::from(amount.clone()) + u128::from(trade_cost.clone()));
           return "created".to_string();
         }
       }
@@ -254,15 +267,6 @@ impl Contract {
       chat.mark_as_received();
       self.chats.insert(&chat_id.clone(), &chat.clone());
       self.release_near(chat_id.clone());
-      // match env::promise_result(0) {
-      //   PromiseResult::NotReady => unreachable!(),
-      //   PromiseResult::Successful(_) => {
-      //     return "success".to_string();
-      //   }
-      //   PromiseResult::Failed => {
-      //     return "failed to release Near".to_string();
-      //   }
-      // }
       return "success".to_string();
     } else {
       self.chats.insert(&chat_id.clone(), &chat.clone());
@@ -338,11 +342,17 @@ impl Contract {
         chat.mark_as_released();
         self.chats.insert(&chat_id.clone(), &chat.clone());
         // self.trades.push(&trade);
-        self.create_revenue("near".to_string(), chat.clone().receiver.clone(),U128(chat.clone().trade_cost.clone()));
+        self.create_revenue(
+          "near".to_string(),
+          "trade".to_string(),
+          chat.clone().payer.clone(),
+          chat.clone().trade_cost.clone(),
+          chat.clone().trade_cost_usd.clone(),
+        );
         self
-          .get_account(chat.clone().owner.clone())
+          .get_account(chat.clone().payer.clone())
           .unwrap()
-          .release(chat.clone().amount.clone(), chat.clone().offerer)
+          .release(chat.clone().amount.clone(), chat.clone().receiver)
       }
     } else {
       // let trade = Trade::new(
@@ -364,11 +374,17 @@ impl Contract {
         chat.update_ended_at();
         self.chats.insert(&chat_id.clone(), &chat.clone());
         // self.trades.push(&trade);
-        self.create_revenue("near".to_string(), chat.clone().payer.clone(),U128(chat.clone().trade_cost.clone()));
+        self.create_revenue(
+          "near".to_string(),
+          "trade".to_string(),
+          chat.clone().receiver.clone(),
+          chat.clone().trade_cost.clone(),
+          chat.clone().trade_cost_usd.clone(),
+        );
         self
-          .get_account(chat.clone().offerer.clone())
+          .get_account(chat.clone().receiver.clone())
           .unwrap()
-          .release(chat.clone().amount, chat.owner)
+          .release(chat.clone().amount, chat.payer)
       }
     }
   }
